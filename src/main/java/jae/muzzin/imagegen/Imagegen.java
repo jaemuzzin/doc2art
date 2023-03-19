@@ -66,6 +66,7 @@ public class Imagegen {
             }
 
             System.out.println(evaluation.averageMeanSquaredError());
+            sd.save(new File("autoencoder.model"), true);
         }
     }
 
