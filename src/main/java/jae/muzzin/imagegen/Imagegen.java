@@ -1,14 +1,13 @@
 package jae.muzzin.imagegen;
 
+import java.io.File;
 import java.io.IOException;
-import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator;
 import org.nd4j.autodiff.listeners.impl.ScoreListener;
 import org.nd4j.autodiff.samediff.SDVariable;
 import org.nd4j.autodiff.samediff.SameDiff;
 import org.nd4j.autodiff.samediff.TrainingConfig;
-import org.nd4j.evaluation.classification.Evaluation;
 import org.nd4j.evaluation.regression.RegressionEvaluation;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ops.impl.layers.convolution.config.Conv2DConfig;
