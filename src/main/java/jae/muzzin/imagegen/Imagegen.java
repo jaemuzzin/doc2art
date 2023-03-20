@@ -98,12 +98,13 @@ public class Imagegen {
                 double genlearningRate = 1e-3;
                 TrainingConfig genConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
                 sd.setTrainingConfig(genConfig);
                 sd.setLossVariables(generator_loss);
+                sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
                 sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
 
                 sd.getVariable("input").setArray(ds.getFeatures());
@@ -115,6 +116,7 @@ public class Imagegen {
                 sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1));
                 var fakeTrainingFeatures = generator.eval();
                 sd.setLossVariables(disc_loss);
+                sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
                         .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
@@ -152,7 +154,7 @@ public class Imagegen {
         var b0 = sd.zero("disc_b0", DataType.FLOAT, 1, 20);
         var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.FLOAT, 20, 1);
         var b1 = sd.zero("disc_b1", DataType.FLOAT, 1, 1);
-        return sd.nn.hardSigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
     }
 
     public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
