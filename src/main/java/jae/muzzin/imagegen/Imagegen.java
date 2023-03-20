@@ -88,7 +88,7 @@ public class Imagegen {
         var disc_loss = discLoss(sd, "disc_loss", discOfData, gan_label);
         for (int i = 0; i < 20; i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
-
+            Evaluation evaluation = new Evaluation();    
             while (trainData.hasNext()) {
                 System.err.println("Training GAN...");
 
@@ -126,10 +126,9 @@ public class Imagegen {
                 sd.setTrainingConfig(discConfig);
                 var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
                 var h = sd.fit(myDs);
-                Evaluation evaluation = new Evaluation();
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
-                System.err.println(evaluation.confusionMatrix());
             }
+            System.err.println(evaluation.confusionMatrix());
         }
     }
 
