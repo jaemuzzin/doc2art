@@ -105,6 +105,10 @@ public class Imagegen {
                 sd.setTrainingConfig(genConfig);
                 sd.setLossVariables(generator_loss);
                 sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
+                
+                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
                 sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
 
                 sd.getVariable("input").setArray(ds.getFeatures());
