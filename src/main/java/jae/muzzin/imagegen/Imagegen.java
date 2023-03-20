@@ -102,9 +102,9 @@ public class Imagegen {
                         .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
-                sd.setTrainingConfig(genConfig);
-                sd.setLossVariables(generator_loss);
-                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+                //sd.setTrainingConfig(genConfig);
+                //sd.setLossVariables(generator_loss);
+                //sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
 
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
@@ -117,7 +117,7 @@ public class Imagegen {
                 sd.setLossVariables(disc_loss);
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
