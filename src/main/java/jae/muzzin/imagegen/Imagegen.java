@@ -9,6 +9,7 @@ import org.nd4j.autodiff.listeners.impl.ScoreListener;
 import org.nd4j.autodiff.samediff.SDVariable;
 import org.nd4j.autodiff.samediff.SameDiff;
 import org.nd4j.autodiff.samediff.TrainingConfig;
+import org.nd4j.evaluation.classification.Evaluation;
 import org.nd4j.evaluation.regression.RegressionEvaluation;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ops.impl.layers.convolution.config.Conv2DConfig;
@@ -72,85 +73,90 @@ public class Imagegen {
             }
             sd.save(new File("autoencoder.model"), true);
         } else {
-            sd = SameDiff.load(new File("autoencoder.model"), true);
+            sd = SameDiff.load(new File("autoencoder.model"), false);
         }
 
         //read batch of real examples, encode them, label as 0
-        DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
-        System.err.println("training GAN..");
-        while (trainData.hasNext()) {
-            DataSet ds = trainData.next();
-            var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 1);
-            var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
-            var generator = generator(sd, "generator", generator_input);
-            var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
-            //add input to generator output, will need to zero out the other depending
-            var disc = discriminator(sd, disc_input.add(generator), "disc");
-            var generator_loss = genLoss(sd, "generator_loss", generator, disc);
-            var disc_loss = discLoss(sd, "disc_loss", disc, gan_label);
-            //Pretrain the generator
-            sd.setLossVariables(generator_loss);
-            var fakeTrainingLables = Nd4j.ones(ds.getFeatures().shape()[0], 1);
-            disc_input.setArray(Nd4j.zeros(ds.getFeatures().shape()[0], 200));
-            sd.convertToConstant(disc_input);
-            sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b1"),sd.getVariable("disc_b0")}));
-            sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("gen_w0"),sd.getVariable("gen_w1")}));
-            double genlearningRate = 1e-3;
-            TrainingConfig genConfig = new TrainingConfig.Builder()
-                    //.l2(1e-4) //L2 regularization
-                    .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
-                    .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
-                    .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
-                    .build();
-            sd.setTrainingConfig(genConfig);
-            sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeTrainingLables));
-            
-            sd.getVariable("input").setArray(ds.getFeatures());
-            var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
-            var realTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
+        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 1);
+        var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
+        var generator = generator(sd, "generator", generator_input);
+        var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
+        //add input to generator output, will need to zero out the other depending
+        var disc = discriminator(sd, generator, "disc");
+        var discOfData = discriminatorOfData(sd, disc_input, "disc_of_data");
+        var generator_loss = genLoss(sd, "generator_loss", disc, gan_label);
+        var disc_loss = discLoss(sd, "disc_loss", discOfData, gan_label);
+        for (int i = 0; i < 20; i++) {
+            DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
 
-            //generate same number of fakes, label as 1
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1));
-            var fakeTrainingFeatures = generator.eval();
-            sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b1"),sd.getVariable("disc_b0")}));
-            sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("gen_w0"),sd.getVariable("gen_w1")}));
-            generator_input.setArray(Nd4j.zeros(ds.getFeatures().shape()[0], 1));
-            sd.convertToVariable(disc_input);
-            sd.setLossVariables(disc_loss);
-            TrainingConfig discConfig = new TrainingConfig.Builder()
-                    //.l2(1e-4) //L2 regularization
-                    .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
-                    .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
-                    .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
-                    .build();
-            sd.setTrainingConfig(discConfig);
-            sd.fit(new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables)));
+            while (trainData.hasNext()) {
+                System.err.println("Training GAN...");
+
+                DataSet ds = trainData.next();
+                //Pretrain the generator
+                var fakeGenTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
+                double genlearningRate = 1e-3;
+                TrainingConfig genConfig = new TrainingConfig.Builder()
+                        //.l2(1e-4) //L2 regularization
+                        .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
+                        .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
+                        .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
+                        .build();
+                sd.setTrainingConfig(genConfig);
+                sd.setLossVariables(generator_loss);
+                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+
+                sd.getVariable("input").setArray(ds.getFeatures());
+                var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
+                var realTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
+                var fakeTrainingLables = Nd4j.ones(ds.getFeatures().shape()[0], 1);
+
+                //generate same number of fakes, label as 1
+                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1));
+                var fakeTrainingFeatures = generator.eval();
+                sd.setLossVariables(disc_loss);
+                TrainingConfig discConfig = new TrainingConfig.Builder()
+                        //.l2(1e-4) //L2 regularization
+                        .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
+                        .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
+                        .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
+                        .build();
+                sd.setTrainingConfig(discConfig);
+                var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
+                var h = sd.fit(myDs);
+                Evaluation evaluation = new Evaluation();
+                sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
+                System.err.println(evaluation.confusionMatrix());
+            }
         }
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
         var w0 = sd.var("gen_w0", new XavierInitScheme('c', 1, 50), DataType.FLOAT, 1, 50);
         var w1 = sd.var("gen_w1", new XavierInitScheme('c', 50, 200), DataType.FLOAT, 50, 200);
-
-        return sd.nn.sigmoid(varName, sd.nn.relu(sd.nn.relu(in.mmul(w0), 0).mmul(w1), 0));
+        var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 50);
+        var b1 = sd.zero("gen_b1", DataType.FLOAT, 1, 200);
+        return sd.nn.sigmoid(varName, sd.nn.relu(sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0));
     }
 
-    public static SDVariable genLoss(SameDiff sd, String varName, SDVariable gen, SDVariable disc) {
-        return sd.math.log(varName, sd.constant(1).minus(disc));
+    public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
+        return sd.loss.absoluteDifference(varName, label, disc, null);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        var probabilityOfFake = descrim;
-        var probabilityOfReal = sd.constant(1).minus(probabilityOfFake);
-        return sd.math.log(label.mul(probabilityOfReal)).add(varName, sd.math.log(sd.constant(1).minus(label).mul(probabilityOfFake)));
+        return sd.loss.absoluteDifference(label, descrim, null);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
         var w0 = sd.var("disc_w0", new XavierInitScheme('c', 200, 20), DataType.FLOAT, 200, 20);
-        var b0 = sd.zero("disc_b0", 1, 20);
-        var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 2), DataType.FLOAT, 20, 1);
-        var b1 = sd.zero("disc_b1", 1, 1);
-        return sd.nn.sigmoid(varName, sd.nn.relu(sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0));
+        var b0 = sd.zero("disc_b0", DataType.FLOAT, 1, 20);
+        var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.FLOAT, 20, 1);
+        var b1 = sd.zero("disc_b1", DataType.FLOAT, 1, 1);
+        return sd.nn.hardSigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
+    }
+
+    public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
     }
 
     public static void autoencoder(SameDiff sd) {
