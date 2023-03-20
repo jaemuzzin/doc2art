@@ -98,7 +98,7 @@ public class Imagegen {
                 double genlearningRate = 1e-3;
                 TrainingConfig genConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -106,7 +106,7 @@ public class Imagegen {
                 sd.setLossVariables(generator_loss);
                 sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
                 
-                for(int e=0;e<2;e++){
+                for(int e=0;e<100-(i*19);e++){
                     sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10), fakeGenTrainingLables));
                 }
                 sd.getVariable("input").setArray(ds.getFeatures());
