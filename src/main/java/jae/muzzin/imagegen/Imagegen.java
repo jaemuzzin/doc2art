@@ -102,9 +102,9 @@ public class Imagegen {
                         .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
-                //sd.setTrainingConfig(genConfig);
-                //sd.setLossVariables(generator_loss);
-                //sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+                sd.setTrainingConfig(genConfig);
+                sd.setLossVariables(generator_loss);
+                sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
 
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
