@@ -46,10 +46,10 @@ public class Imagegen {
         // Adding a listener to the SameDiff instance is necessary because of a beta5 bug, and is not necessary in snapshots
         sd.addListeners(new ScoreListener(20));
 
-        int batchSize = 64;
+        int batchSize = 128;
 
         if (!new File("autoencoder.model").exists()) {
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 10; i++) {
                 DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
                 System.err.println("training..");
                 while (trainData.hasNext()) {
@@ -63,10 +63,14 @@ public class Imagegen {
                 DataSetIterator testData = new MnistDataSetIterator(batchSize, false, 12345);
                 System.err.println("testing..");
                 RegressionEvaluation evaluation = new RegressionEvaluation();
+                int b = 0;
                 while (testData.hasNext()) {
                     DataSet ds = testData.next();
                     var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
-                    sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
+                    if (b % 10 == 0) {
+                        sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
+                    }
+                    b++;
                 }
 
                 System.err.println(evaluation.averageMeanSquaredError());
@@ -101,7 +105,6 @@ public class Imagegen {
             sd.setTrainingConfig(genConfig);
             sd.setLossVariables(generator_loss);
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
-            
 
             System.err.println("Training GEN...");
             for (int e = 0; e < 10000; e++) {
@@ -116,7 +119,7 @@ public class Imagegen {
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
             var exampleGenHidden = generator.eval();
             sd.getVariable("encoder_output").setArray(exampleGenHidden.reshape(5, 5, 8));
-            var imageOutput = sd.getVariable("out").eval();
+            var imageOutput = sd.getVariable("out").eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull());
             sd.setLossVariables(disc_loss);
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
