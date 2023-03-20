@@ -46,7 +46,7 @@ public class Imagegen {
         // Adding a listener to the SameDiff instance is necessary because of a beta5 bug, and is not necessary in snapshots
         sd.addListeners(new ScoreListener(20));
 
-        int batchSize = 128;
+        int batchSize = 1024;
 
         if (!new File("autoencoder.model").exists()) {
             for (int i = 0; i < 10; i++) {
