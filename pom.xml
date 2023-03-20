@@ -29,6 +29,12 @@
             <classifier>windows-x86_64-avx2</classifier>
         </dependency>
         <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>nd4j-native</artifactId>
+            <version>1.0.0-M2.1</version>
+            <classifier>linux-x86_64-avx2</classifier>
+        </dependency>
+        <dependency>
             <groupId>de.siegmar</groupId>
             <artifactId>fastcsv</artifactId>
             <version>2.0.0</version>
