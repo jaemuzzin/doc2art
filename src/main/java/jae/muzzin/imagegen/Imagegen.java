@@ -88,27 +88,37 @@ public class Imagegen {
         var disc_loss = discLoss(sd, "disc_loss", discOfData, gan_label);
         for (int i = 0; i < 20; i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
-            Evaluation evaluation = new Evaluation();    
+            Evaluation evaluation = new Evaluation();
+            //Pretrain the generator
+            var fakeGenTrainingLables = Nd4j.zeros(64, 1);
+            double genlearningRate = 1e-3;
+            TrainingConfig genConfig = new TrainingConfig.Builder()
+                    //.l2(1e-4) //L2 regularization
+                    .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
+                    .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
+                    .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
+                    .build();
+            sd.setTrainingConfig(genConfig);
+            sd.setLossVariables(generator_loss);
+            sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
+            evaluation = new Evaluation();
+
+            System.err.println("Training GEN...");
+            for (int e = 0; e < 300000; e++) {
+                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, 64, 10), fakeGenTrainingLables);
+                sd.fit(gends);
+                if (e % 100 == 0) {
+                    sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
+                }
+            }
+            System.err.println(evaluation.confusionMatrix());
+            sd.setLossVariables(disc_loss);
+            sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
+
+            System.err.println("Training GAN...");
             while (trainData.hasNext()) {
-                System.err.println("Training GAN...");
 
                 DataSet ds = trainData.next();
-                //Pretrain the generator
-                var fakeGenTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
-                double genlearningRate = 1e-3;
-                TrainingConfig genConfig = new TrainingConfig.Builder()
-                        //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
-                        .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
-                        .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
-                        .build();
-                sd.setTrainingConfig(genConfig);
-                sd.setLossVariables(generator_loss);
-                sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
-                
-                for(int e=0;e<100-(i*19);e++){
-                    sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10), fakeGenTrainingLables));
-                }
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
                 var realTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
@@ -117,8 +127,6 @@ public class Imagegen {
                 //generate same number of fakes, label as 1
                 sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10));
                 var fakeTrainingFeatures = generator.eval();
-                sd.setLossVariables(disc_loss);
-                sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
                         .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
