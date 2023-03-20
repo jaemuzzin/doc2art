@@ -48,23 +48,25 @@ public class Imagegen {
 
         for(int i=0;i<100;i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
-            System.out.println("training..");
+            System.err.println("training..");
             while (trainData.hasNext()) {
                 DataSet ds = trainData.next();
                 var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
                 sd.fit(realDs);
+                System.err.print(".");
+                System.err.flush();
             }
+            System.err.println("Done.");
             DataSetIterator testData = new MnistDataSetIterator(batchSize, false, 12345);
-            System.out.println("testing..");
+            System.err.println("testing..");
             RegressionEvaluation evaluation = new RegressionEvaluation();
             while (testData.hasNext()) {
                 DataSet ds = testData.next();
                 var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
                 sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
-            System.out.println(evaluation.averageMeanSquaredError());
             }
 
-            System.out.println(evaluation.averageMeanSquaredError());
+            System.err.println(evaluation.averageMeanSquaredError());
             sd.save(new File("autoencoder.model"), true);
         }
     }
@@ -127,15 +129,20 @@ public class Imagegen {
 
         //W,H,OUT,IN
         SDVariable dw0 = sd.var("dw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.FLOAT, 2,2,4,8);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(relu2, dw0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
+        SDVariable db0 = sd.zero("db0", 4);
+        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(relu2, dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
         SDVariable dw1 = sd.var("dw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.FLOAT, 3, 3, 2, 4);
-        SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable db1 = sd.zero("db1", 2);
+        SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw2 = sd.var("dw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.FLOAT, 2, 2, 2, 2);
-        SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, dw2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
+        SDVariable db2 = sd.zero("db2", 2);
+        SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, dw2, db2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
         SDVariable dw3 = sd.var("dw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.FLOAT, 3, 3, 2, 2);
-        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable db3 = sd.zero("db3", 2);
+        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw4 = sd.var("dw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
-        SDVariable deconv5 = sd.nn().sigmoid(sd.cnn().deconv2d(deconv4, dw4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
+        SDVariable db4 = sd.zero("db4", 1);
+        SDVariable deconv5 = sd.nn().hardSigmoid(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
 
         var out = deconv5.reshape("out", sd.constant(Nd4j.create(new int[][]{{-1, w * w}})));
         SDVariable loss = sd.loss().meanSquaredError("loss", label, out, null);
