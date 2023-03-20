@@ -101,10 +101,10 @@ public class Imagegen {
             sd.setTrainingConfig(genConfig);
             sd.setLossVariables(generator_loss);
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
-            evaluation = new Evaluation();
+            
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 300; e++) {
+            for (int e = 0; e < 3000; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, 64, 10), fakeGenTrainingLables);
                 sd.fit(gends);
                 if (e % 10 == 0) {
@@ -116,6 +116,7 @@ public class Imagegen {
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GAN...");
+            evaluation = new Evaluation();
             while (trainData.hasNext()) {
 
                 DataSet ds = trainData.next();
