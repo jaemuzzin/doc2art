@@ -139,7 +139,7 @@ public class Imagegen {
         var w1 = sd.var("gen_w1", new XavierInitScheme('c', 50, 200), DataType.FLOAT, 50, 200);
         var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 50);
         var b1 = sd.zero("gen_b1", DataType.FLOAT, 1, 200);
-        return sd.nn.sigmoid(varName, sd.nn.relu(sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0));
+        return sd.nn.relu(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0);
     }
 
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
