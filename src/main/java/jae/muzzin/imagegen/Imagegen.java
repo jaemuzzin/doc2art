@@ -77,7 +77,7 @@ public class Imagegen {
         }
 
         //read batch of real examples, encode them, label as 0
-        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 1);
+        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 10);
         var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
         var generator = generator(sd, "generator", generator_input);
         var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
@@ -106,8 +106,8 @@ public class Imagegen {
                 sd.setLossVariables(generator_loss);
                 sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
                 
-                for(int e=0;e<100;e++){
-                    sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1), fakeGenTrainingLables));
+                for(int e=0;e<2;e++){
+                    sd.fit(new DataSet(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10), fakeGenTrainingLables));
                 }
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();
@@ -115,7 +115,7 @@ public class Imagegen {
                 var fakeTrainingLables = Nd4j.ones(ds.getFeatures().shape()[0], 1);
 
                 //generate same number of fakes, label as 1
-                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1));
+                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10));
                 var fakeTrainingFeatures = generator.eval();
                 sd.setLossVariables(disc_loss);
                 sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),sd.getVariable("disc_w1"),sd.getVariable("disc_b0"),sd.getVariable("disc_b1")}));
@@ -135,7 +135,7 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
-        var w0 = sd.var("gen_w0", new XavierInitScheme('c', 1, 50), DataType.FLOAT, 1, 50);
+        var w0 = sd.var("gen_w0", new XavierInitScheme('c', 10, 50), DataType.FLOAT, 10, 50);
         var w1 = sd.var("gen_w1", new XavierInitScheme('c', 50, 200), DataType.FLOAT, 50, 200);
         var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 50);
         var b1 = sd.zero("gen_b1", DataType.FLOAT, 1, 200);
