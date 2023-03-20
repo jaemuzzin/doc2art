@@ -104,11 +104,12 @@ public class Imagegen {
             evaluation = new Evaluation();
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 300000; e++) {
+            for (int e = 0; e < 30000; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, 64, 10), fakeGenTrainingLables);
                 sd.fit(gends);
                 if (e % 100 == 0) {
                     sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
+                    System.err.println(evaluation.confusionMatrix());
                 }
             }
             System.err.println(evaluation.confusionMatrix());
