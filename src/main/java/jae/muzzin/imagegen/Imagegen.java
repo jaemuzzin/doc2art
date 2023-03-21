@@ -31,7 +31,7 @@ public class Imagegen {
         SameDiff sd = SameDiff.create();
         autoencoder(sd);
 
-        double learningRate = 1e-3;
+        double learningRate = 1e-4;
         TrainingConfig config = new TrainingConfig.Builder()
                 //.l2(1e-4) //L2 regularization
                 .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
