@@ -12,6 +12,7 @@ import org.nd4j.autodiff.samediff.TrainingConfig;
 import org.nd4j.evaluation.classification.Evaluation;
 import org.nd4j.evaluation.regression.RegressionEvaluation;
 import org.nd4j.linalg.api.buffer.DataType;
+import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.ops.impl.layers.convolution.config.Conv2DConfig;
 import org.nd4j.linalg.api.ops.impl.layers.convolution.config.DeConv2DConfig;
 import org.nd4j.linalg.api.ops.impl.layers.convolution.config.Pooling2DConfig;
@@ -28,7 +29,7 @@ import org.nd4j.weightinit.impl.XavierInitScheme;
 public class Imagegen {
 
     public static void main(String[] args) throws IOException {
-        
+
         SameDiff sd = SameDiff.create();
         if (new File("gan.model").exists()) {
             sd = SameDiff.load(new File("gan.model"), false);
@@ -38,10 +39,10 @@ public class Imagegen {
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
             var imageOutput = sd.getVariable("decoder").eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-            
+
             System.exit(0);
         }
-        
+
         autoencoder(sd);
 
         double learningRate = 1e-2;
@@ -62,7 +63,7 @@ public class Imagegen {
         int batchSize = 512;
 
         if (!new File("autoencoder.model").exists()) {
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 120; i++) {
                 DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
                 System.err.println("training..");
                 while (trainData.hasNext()) {
@@ -76,16 +77,17 @@ public class Imagegen {
                 DataSetIterator testData = new MnistDataSetIterator(batchSize, false, 12345);
                 System.err.println("testing..");
                 RegressionEvaluation evaluation = new RegressionEvaluation();
+                INDArray exampleRow = null;
                 while (testData.hasNext()) {
                     DataSet ds = testData.next();
                     var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
                     sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
-                    //print it
-                    sd.getVariable("input").setArray(Nd4j.expandDims(ds.getFeatures().getRow(0), 0));
-                    var imageOutput = sd.getVariable("out").eval().reshape(28, 28);
-                    System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));    
+                    exampleRow = ds.getFeatures().getRow(0);
                 }
-
+                //print it
+                sd.getVariable("input").setArray(Nd4j.expandDims(exampleRow, 0));
+                var imageOutput = sd.getVariable("out").eval().reshape(-1, 28, 28);
+                System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
                 System.err.println(evaluation.averageMeanSquaredError());
                 sd.save(new File("autoencoder.model"), true);
             }
@@ -135,7 +137,7 @@ public class Imagegen {
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
             var imageOutput = decoder.eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-            
+
             //setup training
             sd.setLossVariables(disc_loss);
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
