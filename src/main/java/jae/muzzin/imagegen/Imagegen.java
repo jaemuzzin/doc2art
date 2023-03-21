@@ -110,15 +110,15 @@ public class Imagegen {
         var discOfData = discriminatorOfData(sd, disc_input, "disc_of_data");
         var generator_loss = genLoss(sd, "generator_loss", disc, gan_label);
         var disc_loss = discLoss(sd, "disc_loss", discOfData, gan_label);
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 2000; i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
             Evaluation evaluation = new Evaluation();
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-3;
+            double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
-                    .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
+                    .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
                     .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                     .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                     .build();
@@ -127,10 +127,10 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 2000; e++) {
+            for (int e = 0; e < 500; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 10), fakeGenTrainingLables);
                 sd.fit(gends);
-                if (e % 100 == 0) {
+                if (e % 25 == 0) {
                     sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
                 }
             }
