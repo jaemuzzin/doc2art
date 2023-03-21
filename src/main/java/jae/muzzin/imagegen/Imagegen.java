@@ -121,7 +121,7 @@ public class Imagegen {
             var exampleGenHidden = generator.eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
             var imageOutput = decoder.eval().reshape(1, 28, 28);
-            System.err.println(imageOutput.toStringFull());
+            System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll(",", ""));
             sd.setLossVariables(disc_loss);
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
