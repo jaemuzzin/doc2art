@@ -31,7 +31,7 @@ public class Imagegen {
         SameDiff sd = SameDiff.create();
         autoencoder(sd);
 
-        double learningRate = 1e-4;
+        double learningRate = 1e-5;
         TrainingConfig config = new TrainingConfig.Builder()
                 //.l2(1e-4) //L2 regularization
                 .updater(new Nadam(learningRate)) //Adam optimizer with specified learning rate
@@ -63,14 +63,10 @@ public class Imagegen {
                 DataSetIterator testData = new MnistDataSetIterator(batchSize, false, 12345);
                 System.err.println("testing..");
                 RegressionEvaluation evaluation = new RegressionEvaluation();
-                int b = 0;
                 while (testData.hasNext()) {
                     DataSet ds = testData.next();
                     var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
-                    if (b % 10 == 0) {
-                        sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
-                    }
-                    b++;
+                    sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
                 }
 
                 System.err.println(evaluation.averageMeanSquaredError());
