@@ -37,7 +37,7 @@ public class Imagegen {
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
             var exampleGenHidden = sd.getVariable("generator").eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
-            var imageOutput = sd.math.step(sd.getVariable("decoder"), 0).eval().reshape(1, 28, 28);
+            var imageOutput = sd.math.step(sd.getVariable("decoder"), 0.1).eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             System.exit(0);
@@ -90,7 +90,7 @@ public class Imagegen {
                 //System.err.println(imageOutput.toStringFull());
                 //print out
                 sd.getVariable("input").setArray(Nd4j.expandDims(exampleRow, 0));
-                var imageOutput = sd.math.step(sd.getVariable("out"), 0).eval().reshape(-1, 28, 28);
+                var imageOutput = sd.math.step(sd.getVariable("out"), .1).eval().reshape(-1, 28, 28);
                 System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
                 System.err.println(evaluation.averageMeanSquaredError());
                 sd.save(new File("autoencoder.model"), true);
@@ -139,7 +139,7 @@ public class Imagegen {
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
             var exampleGenHidden = generator.eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
-            var imageOutput = sd.math.step(decoder, 0).eval().reshape(1, 28, 28);
+            var imageOutput = sd.math.step(decoder, 0.1).eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             //setup training
