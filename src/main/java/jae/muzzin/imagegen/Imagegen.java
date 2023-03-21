@@ -80,11 +80,15 @@ public class Imagegen {
                     DataSet ds = testData.next();
                     var realDs = new DataSet(ds.getFeatures(), ds.getFeatures());
                     sd.evaluate(new ViewIterator(realDs, Math.min(batchSize, ds.numExamples() - 1)), "out", evaluation);
+                    //print it
+                    sd.getVariable("input").setArray(Nd4j.expandDims(ds.getFeatures().getRow(0), 0));
+                    var imageOutput = sd.getVariable("out").eval().reshape(28, 28);
+                    System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));    
                 }
 
                 System.err.println(evaluation.averageMeanSquaredError());
+                sd.save(new File("autoencoder.model"), true);
             }
-            sd.save(new File("autoencoder.model"), true);
         }
         sd = SameDiff.load(new File("autoencoder.model"), false);
 
