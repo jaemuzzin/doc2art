@@ -271,7 +271,7 @@ public class Imagegen {
         SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw4 = sd.var("dw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
         SDVariable db4 = sd.zero("db4", 1);
-        SDVariable deconv5 = sd.math.step(sd.nn().sigmoid(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build())), .5);
+        SDVariable deconv5 = sd.nn().sigmoid(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
 
         var out = deconv5.reshape("out", sd.constant(Nd4j.create(new int[][]{{-1, w * w}})));
         SDVariable loss = sd.loss().meanSquaredError("loss", label, out, null);
