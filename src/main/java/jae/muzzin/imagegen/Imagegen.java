@@ -76,9 +76,8 @@ public class Imagegen {
                 System.err.println(evaluation.averageMeanSquaredError());
             }
             sd.save(new File("autoencoder.model"), true);
-        } else {
-            sd = SameDiff.load(new File("autoencoder.model"), false);
         }
+        sd = SameDiff.load(new File("autoencoder.model"), false);
 
         //read batch of real examples, encode them, label as 0
         var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 10);
