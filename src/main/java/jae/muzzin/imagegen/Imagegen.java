@@ -175,9 +175,9 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
-        var w0 = sd.var("gen_w0", new XavierInitScheme('c', 10, 50), DataType.FLOAT, 10, 50);
-        var w1 = sd.var("gen_w1", new XavierInitScheme('c', 50, 200), DataType.FLOAT, 50, 200);
-        var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 50);
+        var w0 = sd.var("gen_w0", new XavierInitScheme('c', 10, 512), DataType.FLOAT, 10, 512);
+        var w1 = sd.var("gen_w1", new XavierInitScheme('c', 512, 200), DataType.FLOAT, 512, 200);
+        var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 512);
         var b1 = sd.zero("gen_b1", DataType.FLOAT, 1, 200);
         return sd.nn.relu(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0);
     }
