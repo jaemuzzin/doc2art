@@ -80,11 +80,13 @@ public class Imagegen {
         sd = SameDiff.load(new File("autoencoder.model"), false);
 
         //read batch of real examples, encode them, label as 0
+        var decoder_input = sd.placeHolder("decoder_input", DataType.FLOAT, -1, 8, 5, 5);
         var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 10);
         var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
         var generator = generator(sd, "generator", generator_input);
         var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
         //add input to generator output, will need to zero out the other depending
+        var decoder = decoder(sd, "decoder", decoder_input, 28);
         var disc = discriminator(sd, generator, "disc");
         var discOfData = discriminatorOfData(sd, disc_input, "disc_of_data");
         var generator_loss = genLoss(sd, "generator_loss", disc, gan_label);
@@ -117,8 +119,8 @@ public class Imagegen {
             //print gen example
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
             var exampleGenHidden = generator.eval();
-            sd.getVariable("encoder_output").setArray(exampleGenHidden.reshape(5, 5, 8));
-            var imageOutput = sd.getVariable("out").eval().reshape(1, 28, 28);
+            sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(-1, 8, 5, 5));
+            var imageOutput = decoder.eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull());
             sd.setLossVariables(disc_loss);
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
@@ -157,6 +159,16 @@ public class Imagegen {
         var b0 = sd.zero("gen_b0", DataType.FLOAT, 1, 50);
         var b1 = sd.zero("gen_b1", DataType.FLOAT, 1, 200);
         return sd.nn.relu(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1), 0);
+    }
+
+    public static SDVariable decoder(SameDiff sd, String varName, SDVariable in, int width) {
+        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(in, sd.getVariable("dw0"), sd.getVariable("db0"), DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
+        SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, sd.getVariable("dw1"), sd.getVariable("db1"), DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, sd.getVariable("dw2"), sd.getVariable("db2"), DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
+        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, sd.getVariable("dw3"), sd.getVariable("db3"), DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable deconv5 = sd.nn().hardSigmoid(sd.cnn().deconv2d(deconv4, sd.getVariable("dw4"), sd.getVariable("db4"), DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
+
+        return deconv5.reshape(varName, sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
     }
 
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
