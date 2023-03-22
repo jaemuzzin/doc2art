@@ -110,7 +110,7 @@ public class Imagegen {
         var discOfData = discriminatorOfData(sd, disc_input, "disc_of_data");
         var generator_loss = genLoss(sd, "generator_loss", disc, gan_label);
         var disc_loss = discLoss(sd, "disc_loss", discOfData, gan_label);
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < 200000; i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
             Evaluation evaluation = new Evaluation();
             //Pretrain the generator
@@ -127,7 +127,7 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
-            for (int e = 0; e<10 || evaluation.trueNegatives().get(1)==0; e++) {
+            for (int e = 0; e<1 || evaluation.trueNegatives().get(1)==0; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 1), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
@@ -177,7 +177,7 @@ public class Imagegen {
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
         SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 1, 3*3*800), DataType.FLOAT, 3, 3, 800, 1);
         SDVariable db0 = sd.zero("gb0", 800);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 1, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable deconv1 = sd.nn().sigmoid(sd.cnn().deconv2d(sd.reshape(in, -1, 1, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
         
         SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 3*3*800,  5 * 5 * 8), DataType.FLOAT, 3, 3, 8, 800);
         SDVariable db3 = sd.zero("gb3", 8);
