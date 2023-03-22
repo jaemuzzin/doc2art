@@ -146,7 +146,7 @@ public class Imagegen {
 
             System.err.println("Training GAN...");
             evaluation = new Evaluation();
-            while (trainData.hasNext()) {
+            while (trainData.hasNext() && evaluation.truePositives().get(1) == 0) {
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
