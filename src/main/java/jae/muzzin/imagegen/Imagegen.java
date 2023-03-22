@@ -177,7 +177,7 @@ public class Imagegen {
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
         SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 1, 3*3*800), DataType.FLOAT, 3, 3, 800, 1);
         SDVariable db0 = sd.zero("gb0", 800);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 1, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable deconv1 = sd.nn().tanh(sd.cnn().deconv2d(sd.reshape(in, -1, 1, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
         
         SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 3*3*800,  5 * 5 * 8), DataType.FLOAT, 3, 3, 8, 800);
         SDVariable db3 = sd.zero("gb3", 8);
