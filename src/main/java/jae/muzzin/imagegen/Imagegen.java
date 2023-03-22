@@ -34,7 +34,7 @@ public class Imagegen {
         if (new File("gan.model").exists()) {
             sd = SameDiff.load(new File("gan.model"), false);
             //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
+            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 1));
             var exampleGenHidden = sd.getVariable("generator").eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
             var imageOutput = sd.math.step(sd.getVariable("decoder"), 0.1).eval().reshape(1, 28, 28);
@@ -100,7 +100,7 @@ public class Imagegen {
 
         //read batch of real examples, encode them, label as 0
         var decoder_input = sd.placeHolder("decoder_input", DataType.FLOAT, -1, 8, 5, 5);
-        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 10);
+        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 1);
         var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
         var generator = generator(sd, "generator", generator_input);
         var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
@@ -128,13 +128,13 @@ public class Imagegen {
 
             System.err.println("Training GEN...");
             for (int e = 0; e<10 || evaluation.trueNegatives().get(1)==0; e++) {
-                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 10), fakeGenTrainingLables);
+                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 1), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
             }
             System.err.println(evaluation.confusionMatrix());
             //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
+            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 1));
             var exampleGenHidden = generator.eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
             var imageOutput = sd.math.step(decoder, 0.3).eval().reshape(1, 28, 28);
@@ -154,7 +154,7 @@ public class Imagegen {
                 var fakeTrainingLables = Nd4j.ones(ds.getFeatures().shape()[0], 1);
 
                 //generate same number of fakes, label as 1
-                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 10));
+                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 1));
                 var fakeTrainingFeatures = generator.eval();
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
@@ -173,9 +173,9 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
-        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 10, 3*3*200), DataType.FLOAT, 3, 3, 200, 10);
+        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 1, 3*3*200), DataType.FLOAT, 3, 3, 200, 1);
         SDVariable db0 = sd.zero("gb0", 200);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 10, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 1, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         
         SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 3*3*200,  5 * 5 * 8), DataType.FLOAT, 3, 3, 8, 200);
         SDVariable db3 = sd.zero("gb3", 8);
@@ -224,8 +224,8 @@ public class Imagegen {
         int nIn = w * w;
 
         //Create input and label variables
-        SDVariable in = sd.placeHolder("input", DataType.FLOAT, -1, nIn);                 //Shape: [?, 784] - i.e., minibatch x 784 for MNIST
-        SDVariable label = sd.placeHolder("label", DataType.FLOAT, -1, nIn);             //Shape: [?, 10] - i.e., minibatch x 10 for MNIST
+        SDVariable in = sd.placeHolder("input", DataType.FLOAT, -1, nIn); 
+        SDVariable label = sd.placeHolder("label", DataType.FLOAT, -1, nIn);
 
         //unflatten
         SDVariable reshaped = in.reshape(-1, 1, w, w);
