@@ -115,7 +115,7 @@ public class Imagegen {
             Evaluation evaluation = new Evaluation();
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-5;
+            double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -160,7 +160,7 @@ public class Imagegen {
                 var fakeTrainingFeatures = generator.eval();
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
