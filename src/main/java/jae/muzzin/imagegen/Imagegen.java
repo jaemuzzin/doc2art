@@ -175,18 +175,14 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
-        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 10, 10*10*100), DataType.FLOAT, 10, 10, 100, 10);
-        SDVariable db0 = sd.zero("gb0", 100);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 10, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(10).kW(10).sH(1).sW(1).build()), 0);
-        //10x10x4
-        SDVariable dw1 = sd.var("gw2", new XavierInitScheme('c', 10 * 10 * 100, 20 * 10 * 20), DataType.FLOAT, 2, 1, 20, 100);
-        SDVariable db1 = sd.zero("gb2", 20);
-        SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(2).kW(1).sH(2).sW(1).build()), 0);
-        //20x10x2
-        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 20 * 10 * 20, 20 * 10 * 1), DataType.FLOAT, 1, 1, 1, 20);
-        SDVariable db3 = sd.zero("gb3", 1);
-        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(1).kW(1).sH(1).sW(1).build()), 0);
-        //20x10x1
+        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 10, 3*3*20), DataType.FLOAT, 3, 3, 20, 10);
+        SDVariable db0 = sd.zero("gb0", 20);
+        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 10, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        
+        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 3*3*20,  5 * 5 * 8), DataType.FLOAT, 3, 3, 8, 20);
+        SDVariable db3 = sd.zero("gb3", 8);
+        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
+        
         var out = deconv4.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, 200}})));
         return out;
     }
