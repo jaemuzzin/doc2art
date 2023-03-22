@@ -130,9 +130,7 @@ public class Imagegen {
             for (int e = 0; e < 1000 || evaluation.trueNegatives().get(0)==0; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 10), fakeGenTrainingLables);
                 sd.fit(gends);
-                if (e % 5 == 0) {
-                    sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
-                }
+                sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
             }
             System.err.println(evaluation.confusionMatrix());
             //print gen example
