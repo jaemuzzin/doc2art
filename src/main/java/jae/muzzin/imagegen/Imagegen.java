@@ -139,7 +139,7 @@ public class Imagegen {
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 10));
             var exampleGenHidden = generator.eval();
             sd.getVariable("decoder_input").setArray(exampleGenHidden.reshape(1, 8, 5, 5));
-            var imageOutput = sd.math.step(decoder, 0.1).eval().reshape(1, 28, 28);
+            var imageOutput = sd.math.step(decoder, 0.3).eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             //setup training
