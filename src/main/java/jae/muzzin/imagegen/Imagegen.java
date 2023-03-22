@@ -127,7 +127,7 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 1000; e++) {
+            for (int e = 0; e < 1000 || evaluation.trueNegatives().get(0)==0; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 10), fakeGenTrainingLables);
                 sd.fit(gends);
                 if (e % 5 == 0) {
