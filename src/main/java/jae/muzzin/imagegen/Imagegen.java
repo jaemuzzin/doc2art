@@ -115,7 +115,7 @@ public class Imagegen {
             Evaluation evaluation = new Evaluation();
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-6;
+            double genlearningRate = 1e-5;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -127,10 +127,10 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 500; e++) {
+            for (int e = 0; e < 1000; e++) {
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 10), fakeGenTrainingLables);
                 sd.fit(gends);
-                if (e % 25 == 0) {
+                if (e % 50 == 0) {
                     sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
                 }
             }
@@ -175,15 +175,15 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in) {
-        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 10, 10*10*4), DataType.FLOAT, 10, 10, 4, 10);
-        SDVariable db0 = sd.zero("gb0", 4);
+        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 1 * 1 * 10, 10*10*100), DataType.FLOAT, 10, 10, 100, 10);
+        SDVariable db0 = sd.zero("gb0", 100);
         SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(sd.reshape(in, -1, 10, 1, 1), dw0, db0, DeConv2DConfig.builder().kH(10).kW(10).sH(1).sW(1).build()), 0);
         //10x10x4
-        SDVariable dw1 = sd.var("gw2", new XavierInitScheme('c', 10 * 10 * 4, 20 * 10 * 2), DataType.FLOAT, 2, 1, 2, 4);
-        SDVariable db1 = sd.zero("gb2", 2);
+        SDVariable dw1 = sd.var("gw2", new XavierInitScheme('c', 10 * 10 * 100, 20 * 10 * 20), DataType.FLOAT, 2, 1, 20, 100);
+        SDVariable db1 = sd.zero("gb2", 20);
         SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(2).kW(1).sH(2).sW(1).build()), 0);
         //20x10x2
-        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 20 * 10 * 2, 20 * 10 * 1), DataType.FLOAT, 1, 1, 1, 2);
+        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 20 * 10 * 20, 20 * 10 * 1), DataType.FLOAT, 1, 1, 1, 20);
         SDVariable db3 = sd.zero("gb3", 1);
         SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(1).kW(1).sH(1).sW(1).build()), 0);
         //20x10x1
