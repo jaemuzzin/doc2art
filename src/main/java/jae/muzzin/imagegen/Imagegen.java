@@ -118,10 +118,10 @@ public class Imagegen {
             sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GAN...");
-            evaluation = new Evaluation();
             boolean first = true;
             while (first || trainData.hasNext() && (evaluation.truePositives().get(1) == 0)) {
                 first = false;
+                evaluation = new Evaluation();
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
@@ -144,7 +144,10 @@ public class Imagegen {
                 var h = sd.fit(myDs);
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
             }
+            System.err.println(evaluation.confusionMatrix());
+
             //Pretrain the generator
+            evaluation = new Evaluation();
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
             double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
@@ -171,7 +174,6 @@ public class Imagegen {
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             sd.save(new File("gan.model"), true);
-            System.err.println(evaluation.confusionMatrix());
         }
     }
 
