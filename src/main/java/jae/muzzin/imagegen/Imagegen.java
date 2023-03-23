@@ -131,11 +131,6 @@ public class Imagegen {
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
                 
-            //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
-            var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
-            System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-
             }
             System.err.println(evaluation.confusionMatrix());
             //print gen example
