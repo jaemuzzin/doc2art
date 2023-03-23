@@ -120,7 +120,7 @@ public class Imagegen {
             System.err.println("Training GAN...");
             boolean first = true;
 
-            while (first || trainData.hasNext() && (evaluation.truePositives().get(1) > evaluation.falseNegatives().get(1) && evaluation.falsePositives().get(1) < evaluation.trueNegatives().get(1))) {
+            while (first || trainData.hasNext() && (evaluation.truePositives().get(1) < evaluation.falseNegatives().get(1) || evaluation.falsePositives().get(1) > evaluation.trueNegatives().get(1))) {
                 evaluation = new Evaluation();
                 first = false;
                 DataSet ds = trainData.next();
