@@ -112,31 +112,6 @@ public class Imagegen {
         for (int i = 0; i < 200000; i++) {
             DataSetIterator trainData = new MnistDataSetIterator(batchSize, true, 12345);
             Evaluation evaluation = new Evaluation();
-            //Pretrain the generator
-            var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-6;
-            TrainingConfig genConfig = new TrainingConfig.Builder()
-                    //.l2(1e-4) //L2 regularization
-                    .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
-                    .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
-                    .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
-                    .build();
-            sd.setTrainingConfig(genConfig);
-            sd.setLossVariables(generator_loss);
-            sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"),sd.getVariable("w1"),sd.getVariable("b0"),sd.getVariable("b1"),sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
-
-            System.err.println("Training GEN...");
-            for (int e = 0; e<1 || evaluation.trueNegatives().get(1)==0; e++) {
-                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
-                sd.fit(gends);
-                sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
-                
-            }
-            System.err.println(evaluation.confusionMatrix());
-            //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
-            var imageOutput = sd.math.step(generator, 0.3).eval().reshape(1, 28, 28);
-            System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             //setup training
             sd.setLossVariables(disc_loss);
@@ -144,9 +119,9 @@ public class Imagegen {
 
             System.err.println("Training GAN...");
             evaluation = new Evaluation();
-            boolean first=true;
+            boolean first = true;
             while (first || trainData.hasNext() && (evaluation.truePositives().get(1) == 0)) {
-                first=false;
+                first = false;
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
@@ -169,6 +144,32 @@ public class Imagegen {
                 var h = sd.fit(myDs);
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
             }
+            //Pretrain the generator
+            var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
+            double genlearningRate = 1e-6;
+            TrainingConfig genConfig = new TrainingConfig.Builder()
+                    //.l2(1e-4) //L2 regularization
+                    .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
+                    .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
+                    .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
+                    .build();
+            sd.setTrainingConfig(genConfig);
+            sd.setLossVariables(generator_loss);
+            sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"), sd.getVariable("w1"), sd.getVariable("b0"), sd.getVariable("b1"), sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
+
+            System.err.println("Training GEN...");
+            for (int e = 0; e < 1 || evaluation.trueNegatives().get(1) == 0; e++) {
+                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
+                sd.fit(gends);
+                sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
+
+            }
+            System.err.println(evaluation.confusionMatrix());
+            //print gen example
+            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
+            var imageOutput = sd.math.step(generator, 0.3).eval().reshape(1, 28, 28);
+            System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
+
             sd.save(new File("gan.model"), true);
             System.err.println(evaluation.confusionMatrix());
         }
@@ -225,12 +226,12 @@ public class Imagegen {
     }
 
     /**
-     * 
+     *
      * @param sd
      * @param in shape -1*w*w
-     * @return 
+     * @return
      */
-    public static SDVariable encoder(SameDiff sd, SDVariable in, int w){
+    public static SDVariable encoder(SameDiff sd, SDVariable in, int w) {
         int c = 16;
         int d = 32;
         int nIn = w * w;
@@ -258,6 +259,7 @@ public class Imagegen {
 
         return sd.reshape(sd.nn().relu("encoder", pool2, 0), -1, 5 * 5 * 8);
     }
+
     public static void autoencoder(SameDiff sd) {
 
         //Properties for MNIST dataset:
@@ -267,7 +269,7 @@ public class Imagegen {
         int nIn = w * w;
 
         //Create input and label variables
-        SDVariable in = sd.placeHolder("input", DataType.FLOAT, -1, nIn); 
+        SDVariable in = sd.placeHolder("input", DataType.FLOAT, -1, nIn);
         SDVariable label = sd.placeHolder("label", DataType.FLOAT, -1, nIn);
 
         //unflatten
