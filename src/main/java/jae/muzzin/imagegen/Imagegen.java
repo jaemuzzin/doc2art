@@ -119,8 +119,9 @@ public class Imagegen {
 
             System.err.println("Training GAN...");
             boolean first = true;
-            evaluation = new Evaluation();
-            while (first || trainData.hasNext() && (evaluation.truePositives().get(1) == 0)) {
+
+            while (first || trainData.hasNext() && (evaluation.truePositives().get(1) + evaluation.trueNegatives().get(1) > evaluation.falsePositives().get(1) + evaluation.falseNegatives().get(1))) {
+                evaluation = new Evaluation();
                 first = false;
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
@@ -147,7 +148,6 @@ public class Imagegen {
             System.err.println(evaluation.confusionMatrix());
 
             //Pretrain the generator
-            evaluation = new Evaluation();
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
             double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
@@ -161,11 +161,11 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"), sd.getVariable("w1"), sd.getVariable("b0"), sd.getVariable("b1"), sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
-            for (int e = 0; e < 1 || evaluation.trueNegatives().get(1) == 0; e++) {
+            for (int e = 0; e < 1 || evaluation.trueNegatives().get(1) > evaluation.falseNegatives().get(1); e++) {
+                evaluation = new Evaluation();
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
-
             }
             System.err.println(evaluation.confusionMatrix());
             //print gen example
