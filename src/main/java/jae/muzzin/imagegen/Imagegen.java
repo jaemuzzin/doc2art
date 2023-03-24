@@ -234,7 +234,7 @@ public class Imagegen {
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.logLoss(varName, label, sd.nn.sigmoid(descrim));
+        return sd.loss.logLoss(varName, label, descrim);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
