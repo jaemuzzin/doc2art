@@ -167,7 +167,7 @@ public class Imagegen {
 
             System.err.println("Training GEN...");
             var regEval = new RegressionEvaluation();
-            for (int e = 0; e < 1 || evaluation.truePositives().get(1) < evaluation.falseNegatives().get(1); e++) {
+            for (int e = 0; e < 1 || evaluation.falseNegatives().get(1) < evaluation.truePositives().get(1); e++) {
                 evaluation = new Evaluation();
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
                 sd.fit(gends);
