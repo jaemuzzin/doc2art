@@ -154,7 +154,7 @@ public class Imagegen {
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-7;
+            double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -223,11 +223,11 @@ public class Imagegen {
     }
 
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.loss.sigmoidCrossEntropy(varName, label, disc, null);
+        return sd.loss.logLoss(varName, label, disc);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.sigmoidCrossEntropy(varName, label, descrim, null);
+        return sd.loss.logLoss(varName, label, descrim);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
