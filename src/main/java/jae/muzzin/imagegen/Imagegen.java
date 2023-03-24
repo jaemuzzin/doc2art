@@ -120,7 +120,7 @@ public class Imagegen {
             System.err.println("Training GAN...");
             boolean first = true;
             var regEvalDisc = new RegressionEvaluation();
-            while (first || trainData.hasNext() && (evaluation.falseNegatives().get(1) > 0 || evaluation.falsePositives().get(1) > 0)) {
+            while (first || (trainData.hasNext() && (evaluation.falseNegatives().get(1) > 0 || evaluation.falsePositives().get(1) > 0))) {
                 first = false;
                 evaluation = new Evaluation();
                 DataSet ds = trainData.next();
@@ -148,6 +148,7 @@ public class Imagegen {
                     sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
                 } catch (Exception e) {
                     System.err.println(e.getMessage());
+                    first=true;
                 }
             }
             if (!trainData.hasNext()) {
