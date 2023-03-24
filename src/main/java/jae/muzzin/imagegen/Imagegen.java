@@ -34,7 +34,7 @@ public class Imagegen {
         if (new File("gan.model").exists()) {
             sd = SameDiff.load(new File("gan.model"), false);
             //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.DOUBLE, 1, 8, 5, 5));
+            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
             var exampleGenImage = sd.math.step(sd.getVariable("generator"), .5).eval().reshape(28, 28);
             System.err.println(exampleGenImage.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
@@ -97,8 +97,8 @@ public class Imagegen {
         sd = SameDiff.load(new File("autoencoder.model"), false);
 
         //read batch of real examples, encode them, label as 0
-        var decoder_input = sd.placeHolder("decoder_input", DataType.DOUBLE, -1, 8, 5, 5);
-        var generator_input = sd.placeHolder("generator_input", DataType.DOUBLE, -1, 8, 5, 5);
+        var decoder_input = sd.placeHolder("decoder_input", DataType.FLOAT, -1, 8, 5, 5);
+        var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 8, 5, 5);
         var gan_label = sd.placeHolder("gan_label", DataType.DOUBLE, -1, 1);
         var generator = generator(sd, "generator", generator_input, 28);
         var disc_input = sd.placeHolder("disc_input", DataType.DOUBLE, -1, 200);
@@ -120,20 +120,20 @@ public class Imagegen {
             System.err.println("Training GAN...");
             boolean first = true;
             var regEvalDisc = new RegressionEvaluation();
-            while (first || (trainData.hasNext() && (evaluation.falseNegatives().get(1) > 0 || evaluation.falsePositives().get(1) > 0))) {
+            while (first || trainData.hasNext() && (evaluation.falseNegatives().get(1)>0 || evaluation.falsePositives().get(1) > 0)) {
                 first = false;
                 evaluation = new Evaluation();
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
-                var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
-                var realTrainingLables = Nd4j.zeros(ds.getFeatures().shape()[0], 1);
-                var fakeTrainingLables = Nd4j.ones(ds.getFeatures().shape()[0], 1);
+                var realTrainingFeatures = sd.getVariable("flat_hidden").eval().castTo(DataType.DOUBLE);//encode teh real images
+                var realTrainingLables = Nd4j.zeros(DataType.DOUBLE, ds.getFeatures().shape()[0], 1);
+                var fakeTrainingLables = Nd4j.ones(DataType.DOUBLE, ds.getFeatures().shape()[0], 1);
 
                 //generate same number of fakes, label as 1
-                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.DOUBLE, ds.getFeatures().shape()[0], 8, 5, 5));
+                sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 8, 5, 5));
                 var fakeTrainingImages = generator.eval();
                 sd.getVariable("input").setArray(fakeTrainingImages);
-                var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
+                var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval().castTo(DataType.DOUBLE);//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
                         .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
@@ -143,13 +143,8 @@ public class Imagegen {
                 sd.setTrainingConfig(discConfig);
                 var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
                 sd.fit(myDs);
-                try {
-                    sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
-                    sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
-                } catch (Exception e) {
-                    System.err.println(e.getMessage());
-                    first=true;
-                }
+                sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
+                sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
             }
             if (!trainData.hasNext()) {
                 System.err.println("Exited GAN training without success.");
@@ -158,8 +153,8 @@ public class Imagegen {
             }
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
-            var fakeGenTrainingLables = Nd4j.ones(batchSize, 1);
-            double genlearningRate = 1e-8;
+            var fakeGenTrainingLables = Nd4j.ones(DataType.DOUBLE, batchSize, 1);
+            double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -174,12 +169,12 @@ public class Imagegen {
             var regEval = new RegressionEvaluation();
             for (int e = 0; e < 1 || evaluation.falseNegatives().get(1) < evaluation.truePositives().get(1); e++) {
                 evaluation = new Evaluation();
-                DataSet gends = new DataSet(Nd4j.rand(DataType.DOUBLE, batchSize, 8, 5, 5), fakeGenTrainingLables);
+                DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", regEval);
                 if (e % 10 == 0) {
-                    sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.DOUBLE, 1, 8, 5, 5));
+                    sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
@@ -189,7 +184,7 @@ public class Imagegen {
             }
             System.err.println(evaluation.confusionMatrix());
             //print gen example
-            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.DOUBLE, 1, 8, 5, 5));
+            sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
             var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
             System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
@@ -199,21 +194,21 @@ public class Imagegen {
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in, int width) {
         SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.DOUBLE, 2, 2, 4, 8);
-        SDVariable db0 = sd.zero("gb0", 4);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(in, dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
+        SDVariable db0 = sd.zero("gb0", DataType.DOUBLE, 4);
+        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(in.castTo(DataType.DOUBLE), dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
         SDVariable dw1 = sd.var("gw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.DOUBLE, 3, 3, 2, 4);
-        SDVariable db1 = sd.zero("gb1", 2);
+        SDVariable db1 = sd.zero("gb1", DataType.DOUBLE, 2);
         SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw2 = sd.var("gw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.DOUBLE, 2, 2, 2, 2);
-        SDVariable db2 = sd.zero("gb2", 2);
+        SDVariable db2 = sd.zero("gb2", DataType.DOUBLE, 2);
         SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, dw2, db2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
         SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.DOUBLE, 3, 3, 2, 2);
-        SDVariable db3 = sd.zero("gb3", 2);
+        SDVariable db3 = sd.zero("gb3", DataType.DOUBLE, 2);
         SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw4 = sd.var("gw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.DOUBLE, 3, 3, 1, 2);
-        SDVariable db4 = sd.zero("gb4", 1);
+        SDVariable db4 = sd.zero("gb4", DataType.DOUBLE, 1);
         SDVariable deconv5 = sd.nn().hardSigmoid(sd.nn().relu(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0));
-        var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
+        var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}}))).castTo(DataType.FLOAT);
         return out;
     }
 
@@ -228,11 +223,11 @@ public class Imagegen {
     }
 
     /**
-     * L = -log(sigmoid(D(G(z)))) This is the trick used in the original paper
-     * to avoid vanishing gradients early in training. See `Generative
-     * Adversarial Nets` (https://arxiv.org/abs/1406.2661)
-     *
-     * @return
+     * L = -log(sigmoid(D(G(z))))
+  This is the trick used in the original paper to avoid vanishing gradients
+  early in training. See `Generative Adversarial Nets`
+  (https://arxiv.org/abs/1406.2661) 
+     * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
         return sd.math.log(disc);
@@ -247,11 +242,11 @@ public class Imagegen {
         var b0 = sd.zero("disc_b0", DataType.DOUBLE, 1, 20);
         var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.DOUBLE, 20, 1);
         var b1 = sd.zero("disc_b1", DataType.DOUBLE, 1, 1);
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.castTo(DataType.DOUBLE).mmul(w0).add(b0), 0).mmul(w1).add(b1));
     }
 
     public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.castTo(DataType.DOUBLE).mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
     }
 
     /**
@@ -298,8 +293,8 @@ public class Imagegen {
         int nIn = w * w;
 
         //Create input and label variables
-        SDVariable in = sd.placeHolder("input", DataType.DOUBLE, -1, nIn);
-        SDVariable label = sd.placeHolder("label", DataType.DOUBLE, -1, nIn);
+        SDVariable in = sd.placeHolder("input", DataType.FLOAT, -1, nIn);
+        SDVariable label = sd.placeHolder("label", DataType.FLOAT, -1, nIn);
 
         //unflatten
         SDVariable reshaped = in.reshape(-1, 1, w, w);
@@ -309,7 +304,7 @@ public class Imagegen {
         Conv2DConfig convConfig = Conv2DConfig.builder().kH(3).kW(3).build();
 
         // layer 1: Conv2D with a 3x3 kernel and 4 output channels
-        SDVariable w0 = sd.var("w0", new XavierInitScheme('c', w * w, 26 * 26 * 4), DataType.DOUBLE, 3, 3, 1, 4);
+        SDVariable w0 = sd.var("w0", new XavierInitScheme('c', w * w, 26 * 26 * 4), DataType.FLOAT, 3, 3, 1, 4);
         SDVariable b0 = sd.zero("b0", 4);
 
         //26x26x4
@@ -322,7 +317,7 @@ public class Imagegen {
         SDVariable relu1 = sd.nn().relu(pool1, 0);
 
         // layer 3: Conv2D with a 3x3 kernel and 8 output channels
-        SDVariable w1 = sd.var("w1", new XavierInitScheme('c', 13 * 13 * 4, 11 * 11 * 8), DataType.DOUBLE, 3, 3, 4, 8);
+        SDVariable w1 = sd.var("w1", new XavierInitScheme('c', 13 * 13 * 4, 11 * 11 * 8), DataType.FLOAT, 3, 3, 4, 8);
         SDVariable b1 = sd.zero("b1", 8);
 
         //11x11x8
@@ -338,19 +333,19 @@ public class Imagegen {
         relu2.reshape("flat_hidden", sd.constant(Nd4j.create(new int[][]{{-1, 5 * 5 * 8}})));
 
         //W,H,OUT,IN
-        SDVariable dw0 = sd.var("dw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.DOUBLE, 2, 2, 4, 8);
+        SDVariable dw0 = sd.var("dw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.FLOAT, 2, 2, 4, 8);
         SDVariable db0 = sd.zero("db0", 4);
         SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(relu2, dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
-        SDVariable dw1 = sd.var("dw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.DOUBLE, 3, 3, 2, 4);
+        SDVariable dw1 = sd.var("dw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.FLOAT, 3, 3, 2, 4);
         SDVariable db1 = sd.zero("db1", 2);
         SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
-        SDVariable dw2 = sd.var("dw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.DOUBLE, 2, 2, 2, 2);
+        SDVariable dw2 = sd.var("dw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.FLOAT, 2, 2, 2, 2);
         SDVariable db2 = sd.zero("db2", 2);
         SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, dw2, db2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
-        SDVariable dw3 = sd.var("dw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.DOUBLE, 3, 3, 2, 2);
+        SDVariable dw3 = sd.var("dw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.FLOAT, 3, 3, 2, 2);
         SDVariable db3 = sd.zero("db3", 2);
         SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
-        SDVariable dw4 = sd.var("dw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.DOUBLE, 3, 3, 1, 2);
+        SDVariable dw4 = sd.var("dw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
         SDVariable db4 = sd.zero("db4", 1);
         SDVariable deconv5 = sd.nn().hardSigmoid(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
 
