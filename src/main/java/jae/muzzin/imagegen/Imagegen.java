@@ -119,10 +119,9 @@ public class Imagegen {
 
             System.err.println("Training GAN...");
             boolean first = true;
-
             while (first || trainData.hasNext() && (evaluation.truePositives().get(1) < evaluation.falseNegatives().get(1) || evaluation.falsePositives().get(1) > evaluation.trueNegatives().get(1))) {
-                evaluation = new Evaluation();
                 first = false;
+                evaluation = new Evaluation();
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
                 var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
@@ -145,11 +144,15 @@ public class Imagegen {
                 var h = sd.fit(myDs);
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
             }
+            if (!trainData.hasNext()) {
+                System.err.println("Exited GAN training without success.");
+                System.err.println(evaluation.confusionMatrix());
+                continue;
+            }
             System.err.println(evaluation.confusionMatrix());
-
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-6;
+            double genlearningRate = 1e-5;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -163,13 +166,18 @@ public class Imagegen {
             System.err.println("Training GEN...");
             for (int e = 0; e < 1 || evaluation.trueNegatives().get(1) < evaluation.falsePositives().get(1); e++) {
                 evaluation = new Evaluation();
+                var regEval = new RegressionEvaluation();
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
-                if(e % 10==0){
+                sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", regEval);
+                if (e % 10 == 0) {
                     sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
+
+                    System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
+                    System.err.println(regEval.averageMeanAbsoluteError());
                 }
             }
             System.err.println(evaluation.confusionMatrix());
@@ -213,11 +221,11 @@ public class Imagegen {
     }
 
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.loss.absoluteDifference(varName, label, disc, null);
+        return sd.loss.sigmoidCrossEntropy(varName, label, disc, null);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.absoluteDifference(label, descrim, null);
+        return sd.loss.sigmoidCrossEntropy(varName, label, descrim, null);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
