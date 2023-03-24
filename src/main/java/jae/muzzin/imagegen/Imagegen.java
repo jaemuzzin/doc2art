@@ -142,7 +142,7 @@ public class Imagegen {
                         .build();
                 sd.setTrainingConfig(discConfig);
                 var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
-                var h = sd.fit(myDs);
+                sd.fit(myDs);
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
                 sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
             }
@@ -207,7 +207,7 @@ public class Imagegen {
         SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
         SDVariable dw4 = sd.var("gw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
         SDVariable db4 = sd.zero("gb4", 1);
-        SDVariable deconv5 = sd.nn().sigmoid(sd.nn().relu(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0));
+        SDVariable deconv5 = sd.nn().hardSigmoid(sd.nn().relu(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0));
         var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
         return out;
     }
