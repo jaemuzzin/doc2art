@@ -153,7 +153,7 @@ public class Imagegen {
             }
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
-            var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
+            var fakeGenTrainingLables = Nd4j.ones(batchSize, 1);
             double genlearningRate = 1e-6;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
@@ -223,7 +223,7 @@ public class Imagegen {
     }
 
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.loss.logLoss(varName, label, disc);
+        return discLoss(sd, varName, disc.add(sd.constant(-1)), label);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
