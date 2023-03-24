@@ -136,7 +136,7 @@ public class Imagegen {
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -175,11 +175,11 @@ public class Imagegen {
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", regEval);
                 if (e % 10 == 0) {
                     sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
-                    regEval = new RegressionEvaluation();
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
                     System.err.println(regEval.averageMeanAbsoluteError());
+                    regEval = new RegressionEvaluation();
                 }
             }
             System.err.println(evaluation.confusionMatrix());
