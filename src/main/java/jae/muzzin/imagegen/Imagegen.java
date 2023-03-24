@@ -119,7 +119,7 @@ public class Imagegen {
 
             System.err.println("Training GAN...");
             boolean first = true;
-                var regEvalDisc = new RegressionEvaluation();
+            var regEvalDisc = new RegressionEvaluation();
             while (first || trainData.hasNext() && (evaluation.truePositives().get(1) < evaluation.falseNegatives().get(1) || evaluation.falsePositives().get(1) > evaluation.trueNegatives().get(1))) {
                 first = false;
                 evaluation = new Evaluation();
@@ -136,7 +136,7 @@ public class Imagegen {
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(.0001)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -154,7 +154,7 @@ public class Imagegen {
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.zeros(batchSize, 1);
-            double genlearningRate = 1e-4;
+            double genlearningRate = 1e-7;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -166,16 +166,16 @@ public class Imagegen {
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"), sd.getVariable("w1"), sd.getVariable("b0"), sd.getVariable("b1"), sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
 
             System.err.println("Training GEN...");
+            var regEval = new RegressionEvaluation();
             for (int e = 0; e < 1 || evaluation.trueNegatives().get(1) < evaluation.falsePositives().get(1); e++) {
                 evaluation = new Evaluation();
-                var regEval = new RegressionEvaluation();
                 DataSet gends = new DataSet(Nd4j.rand(DataType.FLOAT, batchSize, 8, 5, 5), fakeGenTrainingLables);
                 sd.fit(gends);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", evaluation);
                 sd.evaluate(new ViewIterator(gends, Math.min(batchSize, gends.numExamples() - 1)), "disc", regEval);
                 if (e % 10 == 0) {
                     sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 8, 5, 5));
-
+                    regEval = new RegressionEvaluation();
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
