@@ -222,12 +222,19 @@ public class Imagegen {
         return deconv5.reshape(varName, sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
     }
 
+    /**
+     * L = -log(sigmoid(D(G(z))))
+  This is the trick used in the original paper to avoid vanishing gradients
+  early in training. See `Generative Adversarial Nets`
+  (https://arxiv.org/abs/1406.2661) 
+     * @return 
+     */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return discLoss(sd, varName, disc.add(sd.constant(-1)), label);
+        return sd.math.log(sd.nn.sigmoid(disc)).mul(-1);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.logLoss(varName, label, descrim);
+        return sd.loss.logLoss(varName, label, sd.nn.sigmoid(descrim));
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
