@@ -120,7 +120,7 @@ public class Imagegen {
             System.err.println("Training GAN...");
             boolean first = true;
             var regEvalDisc = new RegressionEvaluation();
-            while (first || trainData.hasNext() && (evaluation.falseNegatives().get(1)>0 || evaluation.falsePositives().get(1) > 0)) {
+            while (first || trainData.hasNext() && (evaluation.falseNegatives().get(1) > 0 || evaluation.falsePositives().get(1) > 0)) {
                 first = false;
                 evaluation = new Evaluation();
                 DataSet ds = trainData.next();
@@ -143,8 +143,12 @@ public class Imagegen {
                 sd.setTrainingConfig(discConfig);
                 var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
                 sd.fit(myDs);
-                sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
-                sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
+                try {
+                    sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", evaluation);
+                    sd.evaluate(new ViewIterator(myDs, Math.min(batchSize, myDs.numExamples() - 1)), "disc_of_data", regEvalDisc);
+                } catch (Exception e) {
+                    System.err.println(e.getMessage());
+                }
             }
             if (!trainData.hasNext()) {
                 System.err.println("Exited GAN training without success.");
@@ -223,11 +227,11 @@ public class Imagegen {
     }
 
     /**
-     * L = -log(sigmoid(D(G(z))))
-  This is the trick used in the original paper to avoid vanishing gradients
-  early in training. See `Generative Adversarial Nets`
-  (https://arxiv.org/abs/1406.2661) 
-     * @return 
+     * L = -log(sigmoid(D(G(z)))) This is the trick used in the original paper
+     * to avoid vanishing gradients early in training. See `Generative
+     * Adversarial Nets` (https://arxiv.org/abs/1406.2661)
+     *
+     * @return
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
         return sd.math.log(disc);
