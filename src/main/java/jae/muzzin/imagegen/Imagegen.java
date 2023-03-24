@@ -178,7 +178,7 @@ public class Imagegen {
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(generator, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-                    System.err.println(regEval.averageMeanAbsoluteError());
+                    System.err.println("This should get higher:" + regEval.averageMeanAbsoluteError());
                     regEval = new RegressionEvaluation();
                 }
             }
@@ -230,7 +230,7 @@ public class Imagegen {
      * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.math.log(disc).mul(-1);
+        return sd.math.log(disc);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
