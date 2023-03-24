@@ -154,7 +154,7 @@ public class Imagegen {
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.ones(batchSize, 1);
-            double genlearningRate = 1e-6;
+            double genlearningRate = 1e-8;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
