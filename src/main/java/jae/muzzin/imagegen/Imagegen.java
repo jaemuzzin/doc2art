@@ -136,7 +136,7 @@ public class Imagegen {
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(1e-5)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(1e-4)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -155,7 +155,7 @@ public class Imagegen {
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
             var fakeGenTrainingLables = Nd4j.ones(DataType.FLOAT, batchSize, 1);
-            double genlearningRate = 1e-4;
+            double genlearningRate = 1e-5;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
@@ -166,7 +166,8 @@ public class Imagegen {
             sd.setLossVariables(generator_loss);
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"), sd.getVariable("w1"), sd.getVariable("b0"), sd.getVariable("b1"), sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
             
-            System.err.println("Training GEN...");
+            System.err.println("Tr"
+                    + "aining GEN...");
             var regEval = new RegressionEvaluation();
             for (int e = 0; e < 1 || evaluation.falseNegatives().get(1) < evaluation.truePositives().get(1); e++) {
                 evaluation = new Evaluation();
@@ -231,11 +232,11 @@ public class Imagegen {
      * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.math.log(varName, disc);
+        return disc;
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.meanSquaredError(varName, label, descrim, null);
+        return label.mul(descrim.mul(sd.constant(-1f)).add(sd.constant(1f))).add(label.mul(sd.constant(-1f)).add(sd.constant(1f)).mul(descrim));
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
