@@ -208,7 +208,7 @@ public class Imagegen {
         SDVariable deconv4 = sd.nn().tanh(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
         SDVariable dw4 = sd.var("gw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
         SDVariable db4 = sd.zero("gb4", DataType.FLOAT, 1);
-        SDVariable deconv5 = sd.nn().sigmoid(sd.nn().tanh(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build())));
+        SDVariable deconv5 = sd.nn().sigmoid(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
         var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
         return out;
     }
