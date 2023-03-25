@@ -136,10 +136,11 @@ public class Imagegen {
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         .l2(1e-4) //L2 regularization
-                        .updater(new Nadam(1e-4)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(1e-3)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
+                
                 sd.setTrainingConfig(discConfig);
                 var myDs = new DataSet(Nd4j.concat(0, realTrainingFeatures, fakeTrainingFeatures), Nd4j.concat(0, realTrainingLables, fakeTrainingLables));
                 sd.fit(myDs);
@@ -164,7 +165,7 @@ public class Imagegen {
             sd.setTrainingConfig(genConfig);
             sd.setLossVariables(generator_loss);
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("w0"), sd.getVariable("w1"), sd.getVariable("b0"), sd.getVariable("b1"), sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
-
+            
             System.err.println("Training GEN...");
             var regEval = new RegressionEvaluation();
             for (int e = 0; e < 1 || evaluation.falseNegatives().get(1) < evaluation.truePositives().get(1); e++) {
