@@ -135,7 +135,7 @@ public class Imagegen {
                 sd.getVariable("input").setArray(fakeTrainingImages);
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
-                        //.l2(1e-4) //L2 regularization
+                        .l2(1e-4) //L2 regularization
                         .updater(new Nadam(1e-4)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
@@ -232,7 +232,7 @@ public class Imagegen {
      * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return disc;
+        return sd.loss.meanSquaredError(varName, label, disc.mul(sd.constant(-1f).add(sd.constant(1f))), null);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
