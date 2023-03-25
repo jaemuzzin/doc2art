@@ -159,7 +159,7 @@ public class Imagegen {
             double genlearningRate = 1e-5;
             TrainingConfig genConfig = new TrainingConfig.Builder()
                     //.l2(1e-4) //L2 regularization
-                    .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
+                    .updater(new Adam(genlearningRate)) //Adam optimizer with specified learning rate
                     .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                     .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                     .build();
