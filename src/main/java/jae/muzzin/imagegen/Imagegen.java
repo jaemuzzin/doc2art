@@ -99,9 +99,9 @@ public class Imagegen {
         //read batch of real examples, encode them, label as 0
         var decoder_input = sd.placeHolder("decoder_input", DataType.FLOAT, -1, 8, 5, 5);
         var generator_input = sd.placeHolder("generator_input", DataType.FLOAT, -1, 8, 5, 5);
-        var gan_label = sd.placeHolder("gan_label", DataType.DOUBLE, -1, 1);
+        var gan_label = sd.placeHolder("gan_label", DataType.FLOAT, -1, 1);
         var generator = generator(sd, "generator", generator_input, 28);
-        var disc_input = sd.placeHolder("disc_input", DataType.DOUBLE, -1, 200);
+        var disc_input = sd.placeHolder("disc_input", DataType.FLOAT, -1, 200);
         //add input to generator output, will need to zero out the other depending
         var decoder = decoder(sd, "decoder", decoder_input, 28);
         var encoder = encoder(sd, generator, 28);
@@ -125,18 +125,18 @@ public class Imagegen {
                 evaluation = new Evaluation();
                 DataSet ds = trainData.next();
                 sd.getVariable("input").setArray(ds.getFeatures());
-                var realTrainingFeatures = sd.getVariable("flat_hidden").eval().castTo(DataType.DOUBLE);//encode teh real images
-                var realTrainingLables = Nd4j.zeros(DataType.DOUBLE, ds.getFeatures().shape()[0], 1);
-                var fakeTrainingLables = Nd4j.ones(DataType.DOUBLE, ds.getFeatures().shape()[0], 1);
+                var realTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
+                var realTrainingLables = Nd4j.zeros(DataType.FLOAT, ds.getFeatures().shape()[0], 1);
+                var fakeTrainingLables = Nd4j.ones(DataType.FLOAT, ds.getFeatures().shape()[0], 1);
 
                 //generate same number of fakes, label as 1
                 sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, ds.getFeatures().shape()[0], 8, 5, 5));
                 var fakeTrainingImages = generator.eval();
                 sd.getVariable("input").setArray(fakeTrainingImages);
-                var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval().castTo(DataType.DOUBLE);//encode teh real images
+                var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
-                        //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(.00001)) //Adam optimizer with specified learning rate
+                        .l2(1e-4) //L2 regularization
+                        .updater(new Nadam(1e-4)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -153,10 +153,10 @@ public class Imagegen {
             }
             System.err.println(evaluation.confusionMatrix());
             //Pretrain the generator
-            var fakeGenTrainingLables = Nd4j.ones(DataType.DOUBLE, batchSize, 1);
-            double genlearningRate = 1e-6;
+            var fakeGenTrainingLables = Nd4j.ones(DataType.FLOAT, batchSize, 1);
+            double genlearningRate = 1e-4;
             TrainingConfig genConfig = new TrainingConfig.Builder()
-                    //.l2(1e-4) //L2 regularization
+                    .l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
                     .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                     .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
@@ -193,22 +193,22 @@ public class Imagegen {
     }
 
     public static SDVariable generator(SameDiff sd, String varName, SDVariable in, int width) {
-        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.DOUBLE, 2, 2, 4, 8);
-        SDVariable db0 = sd.zero("gb0", DataType.DOUBLE, 4);
-        SDVariable deconv1 = sd.nn().relu(sd.cnn().deconv2d(in.castTo(DataType.DOUBLE), dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
-        SDVariable dw1 = sd.var("gw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.DOUBLE, 3, 3, 2, 4);
-        SDVariable db1 = sd.zero("gb1", DataType.DOUBLE, 2);
-        SDVariable deconv2 = sd.nn().relu(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
-        SDVariable dw2 = sd.var("gw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.DOUBLE, 2, 2, 2, 2);
-        SDVariable db2 = sd.zero("gb2", DataType.DOUBLE, 2);
-        SDVariable deconv3 = sd.nn().relu(sd.cnn().deconv2d(deconv2, dw2, db2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()), 0);
-        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.DOUBLE, 3, 3, 2, 2);
-        SDVariable db3 = sd.zero("gb3", DataType.DOUBLE, 2);
-        SDVariable deconv4 = sd.nn().relu(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0);
-        SDVariable dw4 = sd.var("gw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.DOUBLE, 3, 3, 1, 2);
-        SDVariable db4 = sd.zero("gb4", DataType.DOUBLE, 1);
-        SDVariable deconv5 = sd.nn().hardSigmoid(sd.nn().relu(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()), 0));
-        var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}}))).castTo(DataType.FLOAT);
+        SDVariable dw0 = sd.var("gw0", new XavierInitScheme('c', 5 * 5 * 8, 10 * 10 * 4), DataType.FLOAT, 2, 2, 4, 8);
+        SDVariable db0 = sd.zero("gb0", DataType.FLOAT, 4);
+        SDVariable deconv1 = sd.nn().tanh(sd.cnn().deconv2d(in, dw0, db0, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()));
+        SDVariable dw1 = sd.var("gw1", new XavierInitScheme('c', 10 * 10 * 4, 12 * 12 * 2), DataType.FLOAT, 3, 3, 2, 4);
+        SDVariable db1 = sd.zero("gb1", DataType.FLOAT, 2);
+        SDVariable deconv2 = sd.nn().tanh(sd.cnn().deconv2d(deconv1, dw1, db1, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
+        SDVariable dw2 = sd.var("gw2", new XavierInitScheme('c', 12 * 12 * 2, 24 * 24 * 2), DataType.FLOAT, 2, 2, 2, 2);
+        SDVariable db2 = sd.zero("gb2", DataType.FLOAT, 2);
+        SDVariable deconv3 = sd.nn().tanh(sd.cnn().deconv2d(deconv2, dw2, db2, DeConv2DConfig.builder().kH(2).kW(2).sH(2).sW(2).build()));
+        SDVariable dw3 = sd.var("gw3", new XavierInitScheme('c', 24 * 24 * 2, 26 * 26 * 2), DataType.FLOAT, 3, 3, 2, 2);
+        SDVariable db3 = sd.zero("gb3", DataType.FLOAT, 2);
+        SDVariable deconv4 = sd.nn().tanh(sd.cnn().deconv2d(deconv3, dw3, db3, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build()));
+        SDVariable dw4 = sd.var("gw4", new XavierInitScheme('c', 26 * 26 * 2, 28 * 28 * 1), DataType.FLOAT, 3, 3, 1, 2);
+        SDVariable db4 = sd.zero("gb4", DataType.FLOAT, 1);
+        SDVariable deconv5 = sd.nn().sigmoid(sd.nn().tanh(sd.cnn().deconv2d(deconv4, dw4, db4, DeConv2DConfig.builder().kH(3).kW(3).sH(1).sW(1).build())));
+        var out = deconv5.reshape("generator", sd.constant(Nd4j.create(new int[][]{{-1, width * width}})));
         return out;
     }
 
@@ -238,15 +238,15 @@ public class Imagegen {
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
-        var w0 = sd.var("disc_w0", new XavierInitScheme('c', 200, 20), DataType.DOUBLE, 200, 20);
-        var b0 = sd.zero("disc_b0", DataType.DOUBLE, 1, 20);
-        var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.DOUBLE, 20, 1);
-        var b1 = sd.zero("disc_b1", DataType.DOUBLE, 1, 1);
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.castTo(DataType.DOUBLE).mmul(w0).add(b0), 0).mmul(w1).add(b1));
+        var w0 = sd.var("disc_w0", new XavierInitScheme('c', 200, 20), DataType.FLOAT, 200, 20);
+        var b0 = sd.zero("disc_b0", DataType.FLOAT, 1, 20);
+        var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.FLOAT, 20, 1);
+        var b1 = sd.zero("disc_b1", DataType.FLOAT, 1, 1);
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
     }
 
     public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.castTo(DataType.DOUBLE).mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
+        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
     }
 
     /**
