@@ -135,7 +135,7 @@ public class Imagegen {
                 sd.getVariable("input").setArray(fakeTrainingImages);
                 var fakeTrainingFeatures = sd.getVariable("flat_hidden").eval();//encode teh real images
                 TrainingConfig discConfig = new TrainingConfig.Builder()
-                        .l2(1e-4) //L2 regularization
+                        //.l2(1e-4) //L2 regularization
                         .updater(new Nadam(1e-5)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
@@ -157,7 +157,7 @@ public class Imagegen {
             var fakeGenTrainingLables = Nd4j.ones(DataType.FLOAT, batchSize, 1);
             double genlearningRate = 1e-4;
             TrainingConfig genConfig = new TrainingConfig.Builder()
-                    .l2(1e-4) //L2 regularization
+                    //.l2(1e-4) //L2 regularization
                     .updater(new Nadam(genlearningRate)) //Adam optimizer with specified learning rate
                     .dataSetFeatureMapping("generator_input") //DataSet features array should be associated with variable "input"
                     .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
