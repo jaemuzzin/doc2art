@@ -236,7 +236,7 @@ public class Imagegen {
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return label.mul(descrim.mul(sd.constant(-1f)).add(sd.constant(1f))).add(label.mul(sd.constant(-1f)).add(sd.constant(1f)).mul(descrim));
+        return sd.loss.meanSquaredError(label, descrim, null);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
