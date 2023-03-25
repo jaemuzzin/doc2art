@@ -231,11 +231,11 @@ public class Imagegen {
      * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.math.log(disc);
+        return sd.math.log(varName, disc);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
-        return sd.loss.logLoss(varName, label, descrim);
+        return sd.loss.meanSquaredError(varName, label, descrim, null);
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
