@@ -116,7 +116,7 @@ public class Imagegen {
 
             //setup training
             sd.setLossVariables(disc_loss);
-            sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"), sd.getVariable("disc_w1"), sd.getVariable("disc_b0"), sd.getVariable("disc_b1")}));
+            sd.convertToVariables(Arrays.asList(new SDVariable[]{sd.getVariable("disc_w0"),  sd.getVariable("disc_b0")}));
             sd.convertToConstants(Arrays.asList(new SDVariable[]{sd.getVariable("gw0"), sd.getVariable("gb0")}));
             
             System.err.println("Training GAN...");
@@ -179,7 +179,7 @@ public class Imagegen {
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(decoder, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-                    System.err.println("This should get lower:" + regEval.averageMeanAbsoluteError());
+                    System.err.println("This should get higher:" + regEval.averageMeanAbsoluteError());
                     regEval = new RegressionEvaluation();
                 }
             }
@@ -229,15 +229,26 @@ public class Imagegen {
     }
 
     public static SDVariable discriminator(SameDiff sd, SDVariable in, String varName) {
-        var w0 = sd.var("disc_w0", new XavierInitScheme('c', 200, 20), DataType.FLOAT, 200, 20);
-        var b0 = sd.zero("disc_b0", DataType.FLOAT, 1, 20);
-        var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.FLOAT, 20, 1);
-        var b1 = sd.zero("disc_b1", DataType.FLOAT, 1, 1);
-        return sd.nn.sigmoid(varName, sd.nn.sigmoid(in.mmul(w0).add(b0)).mmul(w1).add(b1));
+        // layer 1: Conv2D with a 5x5 kernel and 1 output channels
+        SDVariable reshaped = in.reshape(-1, 8, 5, 5);
+        SDVariable w0 = sd.var("disc_w0", new XavierInitScheme('c', 5 * 5 * 8, 1 * 1 * 1), DataType.FLOAT, 5, 5, 8, 1);
+        SDVariable b0 = sd.zero("disc_b0", 1);
+        Conv2DConfig convConfig = Conv2DConfig.builder().kH(5).kW(5).build();
+
+        SDVariable conv1 = sd.cnn().conv2d(reshaped, w0, b0, convConfig);
+
+        SDVariable relu1 = sd.reshape(varName, sd.nn().relu(conv1, 0), -1, 1);
+        return relu1;
     }
 
     public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(sd.getVariable("disc_w0")).add(sd.getVariable("disc_b0")), 0).mmul(sd.getVariable("disc_w1")).add(sd.getVariable("disc_b1")));
+        SDVariable reshaped = in.reshape(-1, 8, 5, 5);
+        Conv2DConfig convConfig = Conv2DConfig.builder().kH(5).kW(5).build();
+
+        SDVariable conv1 = sd.cnn().conv2d(reshaped, sd.getVariable("disc_w0"), sd.getVariable("disc_b0"), convConfig);
+
+        SDVariable relu1 = sd.reshape(varName, sd.nn().relu(conv1, 0), -1, 1);
+        return relu1;
     }
 
     /**
