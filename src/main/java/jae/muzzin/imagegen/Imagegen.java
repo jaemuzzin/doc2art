@@ -36,7 +36,7 @@ public class Imagegen {
             sd = SameDiff.load(new File("gan.model"), false);
             //print gen example
             sd.getVariable("generator_input").setArray(Nd4j.rand(DataType.FLOAT, 1, 1, 1, 1));
-            var exampleGenImage = sd.math.step(sd.getVariable("generator"), .5).eval().reshape(28, 28);
+            var exampleGenImage = sd.math.step(sd.getVariable("decoder"), .5).eval().reshape(28, 28);
             System.err.println(exampleGenImage.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
 
             System.exit(0);
@@ -122,7 +122,7 @@ public class Imagegen {
             System.err.println("Training GAN...");
             boolean first = true;
             var regEvalDisc = new RegressionEvaluation();
-            while (first || trainData.hasNext() && (evaluation.falseNegatives().get(1)>0 || evaluation.falsePositives().get(1) > 0)) {
+            while (first || (trainData.hasNext() && (evaluation.falseNegatives().get(1)>0 || evaluation.falsePositives().get(1) > 0))) {
                 first = false;
                 evaluation = new Evaluation();
                 DataSet ds = trainData.next();
@@ -136,7 +136,7 @@ public class Imagegen {
                 var fakeTrainingFeatures = generator.eval();
                 TrainingConfig discConfig = new TrainingConfig.Builder()
                         //.l2(1e-4) //L2 regularization
-                        .updater(new Nadam(1e-3)) //Adam optimizer with specified learning rate
+                        .updater(new Nadam(1e-5)) //Adam optimizer with specified learning rate
                         .dataSetFeatureMapping("disc_input") //DataSet features array should be associated with variable "input"
                         .dataSetLabelMapping("gan_label") //DataSet label array should be associated with variable "label"
                         .build();
@@ -179,7 +179,7 @@ public class Imagegen {
                     System.err.println(evaluation.confusionMatrix());
                     var imageOutput = sd.math.step(decoder, 0.5).eval().reshape(1, 28, 28);
                     System.err.println(imageOutput.toStringFull().replaceAll(" ", "").replaceAll("1", "*").replaceAll("0", " ").replaceAll(",", ""));
-                    System.err.println("This should get higher:" + regEval.averageMeanAbsoluteError());
+                    System.err.println("This should get lower:" + regEval.averageMeanAbsoluteError());
                     regEval = new RegressionEvaluation();
                 }
             }
@@ -221,7 +221,7 @@ public class Imagegen {
      * @return 
      */
     public static SDVariable genLoss(SameDiff sd, String varName, SDVariable disc, SDVariable label) {
-        return sd.loss.meanSquaredError(varName, label, disc.mul(sd.constant(-1f)), null);
+        return sd.loss.meanSquaredError(varName, label, sd.constant(-1f).minus(disc), null);
     }
 
     public static SDVariable discLoss(SameDiff sd, String varName, SDVariable descrim, SDVariable label) {
@@ -233,7 +233,7 @@ public class Imagegen {
         var b0 = sd.zero("disc_b0", DataType.FLOAT, 1, 20);
         var w1 = sd.var("disc_w1", new XavierInitScheme('c', 20, 1), DataType.FLOAT, 20, 1);
         var b1 = sd.zero("disc_b1", DataType.FLOAT, 1, 1);
-        return sd.nn.sigmoid(varName, sd.nn.relu(in.mmul(w0).add(b0), 0).mmul(w1).add(b1));
+        return sd.nn.sigmoid(varName, sd.nn.sigmoid(in.mmul(w0).add(b0)).mmul(w1).add(b1));
     }
 
     public static SDVariable discriminatorOfData(SameDiff sd, SDVariable in, String varName) {
